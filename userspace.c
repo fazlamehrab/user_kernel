@@ -72,7 +72,7 @@ while(!quit){
 	printf("1. Allocate Memory at kernel space\n");
 	printf("2. Map Kernel space Memory\n");
 	//printf("3. Read Data\n");
-	printf("0. Exit\n");
+	//printf("0. Exit\n");
 	printf("Enter your choice :: ");
 	scanf("%d",&option);
 
@@ -102,13 +102,11 @@ while(!quit){
 			pthread_create(&print_thread, NULL, print_long, NULL); 
 			sleep(60);	
 			quit_thread = 1;
-			break;
-		case 0:
-			close(handle);
-			
+			//break;
+		//case 0:
 			if(ioctl(fd, WRITE_IOCTL, "0") < 0)
 				perror("Exit Command");
-			
+			close(handle);
 			close(fd);
 			sprintf(command3,"rm -rf %s", cdev);
 			system(command3);

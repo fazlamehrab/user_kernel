@@ -144,7 +144,8 @@ int ioctl_command(struct file *filep, unsigned int cmd, unsigned long arg) {
 			printk("Thread fired\n");
 			out = 0;
 		}
-		if(buf[0] == '0'){
+		if(buf[0] == '0')
+		{
 			out = 1;
 			kthread_stop(ts);
 			printk("Thread Stopped\n");
