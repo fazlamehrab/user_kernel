@@ -41,24 +41,7 @@ int main(){
 	pthread_t print_thread;	
 	FILE *myFile;
 
-	char *cdev = "/dev/my_device";
-	char *command1 = "dmesg | grep \"MAJOR: \" | cut -d':' -f3 | tail -1 > major";
-	char command2[100];
-	char command3[100];
-
-	system(command1);
-		
-	myFile = fopen("major", "r");
-	if (myFile == NULL)
-	{
-		printf("Error Reading File\n");
-		return -1;
-	}
-	fscanf(myFile, "%d", &major);
-	fclose(myFile);
-
-	sprintf(command2, "mknod %s c %d 0", cdev, major);
-	system(command2); 
+	char *cdev = "/dev/my_char_device";
 	
 	if ((fd = open(cdev, O_RDWR)) < 0) {
 		perror("open");
@@ -107,10 +90,7 @@ while(!quit){
 			if(ioctl(fd, WRITE_IOCTL, "0") < 0)
 				perror("Exit Command");
 			close(handle);
-			close(fd);
-			sprintf(command3,"rm -rf %s", cdev);
-			system(command3);
-			
+			close(fd);			
 			quit = 1;			
 			break;
 	}

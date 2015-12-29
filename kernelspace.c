@@ -9,6 +9,8 @@
 #include <linux/timer.h> 
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include<linux/device.h>
+#include <linux/cdev.h>
  
 #ifndef VM_RESERVED
 # define  VM_RESERVED   (VM_DONTEXPAND | VM_DONTDUMP)
@@ -18,7 +20,10 @@
 #define READ_IOCTL _IOR(MY_MACIG, 0, int)
 #define WRITE_IOCTL _IOW(MY_MACIG, 1, int)
  
-static int major; 
+int major;
+static dev_t first;
+static struct class *cl;
+static struct cdev c_dev;
 static char msg[200];
 char buf[200];
 static struct task_struct *ts;
@@ -125,6 +130,16 @@ static const struct file_operations mmap_fops = {
     	.mmap = op_mmap,
 };
 
+static int ioctl_open( struct inode *inode, struct file *file )
+{
+    return 0;
+}
+ 
+static int ioctl_close( struct inode *inode, struct file *file )
+{
+    return 0;
+}
+
 /*Receive Commands from user*/
 int ioctl_command(struct file *filep, unsigned int cmd, unsigned long arg) {
 	int len = 200, configfd;
@@ -161,26 +176,54 @@ int ioctl_command(struct file *filep, unsigned int cmd, unsigned long arg) {
 }
 
 static struct file_operations file_func = {
+	.owner = THIS_MODULE,
+	.open = ioctl_open,
+	.release = ioctl_close,
 	.unlocked_ioctl = ioctl_command,
 };
 
 /*init module*/
 static int __init map_module_init(void)
 {
-	major = register_chrdev(0, "my_device", &file_func);
-	if (major < 0) {
-     		printk ("Character device driver registration failed\n");
-	     	return major;
-	}
-	printk("My Device: MAJOR: %d\n", major);
-
+	printk(KERN_INFO "Welcome!");
+    if (major = alloc_chrdev_region(&first, 0, 1, "my_char_dev") < 0)  //$cat /proc/devices
+    {
+        return -1;
+    }
+	printk("Major = %d\n", major);
+	
+    if ((cl = class_create(THIS_MODULE, "my_chardrv")) == NULL)    //$ls /sys/class
+    {
+        unregister_chrdev_region(first, 1);
+        return -1;
+    }
+	
+    if (device_create(cl, NULL, first, NULL, "my_char_device") == NULL) //$ls /dev/
+    {
+        class_destroy(cl);
+        unregister_chrdev_region(first, 1);
+        return -1;
+    }
+    cdev_init(&c_dev, &file_func);
+    if (cdev_add(&c_dev, first, 1) == -1)
+    {
+        device_destroy(cl, first);
+        class_destroy(cl);
+        unregister_chrdev_region(first, 1);
+        return -1;
+    }
  	return 0;
 }
 
 /*Exit module*/
 static void __exit map_module_exit(void)
 {
-	unregister_chrdev(major, "my_device");
+	//unregister_chrdev(major, "my_device");
+	cdev_del( &c_dev );
+	device_destroy(cl, first);
+    class_destroy(cl);
+	unregister_chrdev_region(first, 1);
+	
 	debugfs_remove(file);
 }  
 
