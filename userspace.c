@@ -20,12 +20,12 @@ void* print_long()
 	unsigned long curr_value, prev_value = 0; 
 
 	curr_value = prev_value = address[0];
-	printf("First value = %d\n", curr_value);	
+	printf("First value = %lu\n", curr_value);	
 
 	do{		
 		if(curr_value != prev_value)
 		{
-			printf("First value = %d\n", curr_value);
+			printf("First value = %lu\n", curr_value);
 			prev_value = curr_value;
 		}
 		curr_value = address[0];
