@@ -25,13 +25,12 @@
 static dev_t first;
 static struct class *cl;
 static struct cdev c_dev;
-char buf[200];
-//static struct task_struct *ts;
-struct mmap_info *info;
-int out;
+struct mmap_info *address;
 static struct timer_list my_timer;
-struct dentry  *file;
- 
+struct dentry  *my_file;
+int out;
+char buf[200];
+
 struct mmap_info
 {
 	char *data;            
@@ -41,20 +40,24 @@ struct mmap_info
 void increment_value(void)
 {
 	unsigned long value;
-	value = *(info->data);
+	value = *(address->data);
 	value++;
-	memcpy(info->data, &value, sizeof(unsigned long));		
+	memcpy(address->data, &value, sizeof(unsigned long));
+		
 }
 
 void timer_callback(unsigned long data)
 {
+	if(out)
+	{	
+		printk("No more timer\n");
+		return;
+	}
 	// Restart Timer 
 	del_timer(&my_timer);
-	if(out)
-		 return;
-	
-	mod_timer(&my_timer, jiffies + msecs_to_jiffies(TIME_MS));//next timer start
+	mod_timer(&my_timer, jiffies + msecs_to_jiffies(TIME_MS));
 	increment_value();
+	return;
 }
 
 void mmap_open(struct vm_area_struct *vma)
@@ -120,9 +123,15 @@ int op_mmap(struct file *filp, struct vm_area_struct *vma)
 
 int mmapfop_open(struct inode *inode, struct file *filp)
 {
-	info = kmalloc(sizeof(struct mmap_info), GFP_KERNEL);    
-	info->data = (char *)get_zeroed_page(GFP_KERNEL);
-    filp->private_data = info;
+	address = kmalloc(sizeof(struct mmap_info), GFP_KERNEL);   
+	if(address == NULL)
+	{
+		printk("cannot allocate memory\n");
+		return -1;
+	}
+	
+	address->data = (char *)get_zeroed_page(GFP_KERNEL);
+    filp->private_data = address;
 	return 0;
 }
 
@@ -143,36 +152,42 @@ static int ioctl_close( struct inode *inode, struct file *file )
 }
 
 /*Receive Commands from user*/
-static long ioctl_command(struct file *filep, unsigned int cmd, unsigned long arg) {
+static long ioctl_command(struct file *filep, unsigned int cmd, unsigned long arg)
+{
 	int len = 200;
-	switch(cmd) {
-	case READ_IOCTL:	
-		copy_to_user((char *)arg, buf, 200);
-		break;
-	
-	case WRITE_IOCTL:
-		copy_from_user(buf, (char *)arg, len);
-		if(buf[0] == '1')
-		{
-			file = debugfs_create_file("memory_map", 0644, NULL, NULL, &mmap_fops);
-		}
-		else if(buf[0] == '2')
-		{			
-			out = 0;
-			setup_timer(&my_timer, timer_callback, 0);
-			increment_value();
-			mod_timer(&my_timer, jiffies + msecs_to_jiffies(TIME_MS));//1st timer start
-			printk("Timer started\n");
-		}
-		if(buf[0] == '0')
-		{
-			out = 1;
-			printk("Timer Stopped\n");
-		}
-		break;
+	switch(cmd) 
+	{
+		case READ_IOCTL:	
+			copy_to_user((char *)arg, buf, 200);
+			break;
+		
+		case WRITE_IOCTL:
+			copy_from_user(buf, (char *)arg, len);
+			if(buf[0] == '1')
+			{
+				my_file = debugfs_create_file("memory_map", 0777, NULL, NULL, &mmap_fops);
+				if(my_file == NULL)
+					printk("Error creating file\n");
+			}
+			else if(buf[0] == '2')
+			{			
+				out = 0;
+				setup_timer(&my_timer, timer_callback, 0);
+				increment_value();
+				mod_timer(&my_timer, jiffies + msecs_to_jiffies(TIME_MS));//1st timer start
+				printk("First Timer started\n");
+			}
+			if(buf[0] == '0')
+			{
+				out = 1;
+				del_timer(&my_timer);
+				printk("Last Timer Deleted\n");
+				debugfs_remove(my_file);
+			}
+			break;
 
-	default:
-		return -ENOTTY;
+		default:
+			return -ENOTTY;
 	}
 	return len;
 }
@@ -186,8 +201,8 @@ static struct file_operations file_func = {
 
 /*init module*/
 static int __init map_module_init(void)
-{
-    if (alloc_chrdev_region(&first, 0, 1, "my_char_dev") < 0)
+{	
+   if (alloc_chrdev_region(&first, 0, 1, "my_char_dev") < 0)
     {
         return -1;
     }
@@ -218,14 +233,16 @@ static int __init map_module_init(void)
 /*Exit module*/
 static void __exit map_module_exit(void)
 {
-	cdev_del( &c_dev );
+	cdev_del(&c_dev);
 	device_destroy(cl, first);
     class_destroy(cl);
 	unregister_chrdev_region(first, 1);
 	
-	debugfs_remove(file);
+	debugfs_remove(my_file);
 	
 	del_timer(&my_timer);
+	
+				
 }  
 
 module_init(map_module_init);
