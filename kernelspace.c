@@ -13,12 +13,11 @@
 #include <linux/cdev.h>
  
 #ifndef VM_RESERVED
-# define  VM_RESERVED   (VM_DONTEXPAND | VM_DONTDUMP)
+	#define  VM_RESERVED   (VM_DONTEXPAND | VM_DONTDUMP)
 #endif
 
-#define MY_MACIG 'G'
-#define READ_IOCTL _IOR(MY_MACIG, 0, int)
-#define WRITE_IOCTL _IOW(MY_MACIG, 1, int)
+#define READ_IOCTL _IOR('G', 0, int)
+#define WRITE_IOCTL _IOW('G', 1, int)
  
 #define TIME_MS 500
 
@@ -42,8 +41,7 @@ void increment_value(void)
 	unsigned long value;
 	value = *(address->data);
 	value++;
-	memcpy(address->data, &value, sizeof(unsigned long));
-		
+	memcpy(address->data, &value, sizeof(unsigned long));	
 }
 
 void timer_callback(unsigned long data)
@@ -53,9 +51,10 @@ void timer_callback(unsigned long data)
 		printk("No more timer\n");
 		return;
 	}
-	// Restart Timer 
+	/* Restart Timer */ 
 	del_timer(&my_timer);
 	mod_timer(&my_timer, jiffies + msecs_to_jiffies(TIME_MS));
+	
 	increment_value();
 	return;
 }
@@ -76,7 +75,6 @@ void mmap_close(struct vm_area_struct *vma)
 
 static int mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	struct page *page;
 	struct mmap_info *info;    
  
 	info = (struct mmap_info *)vma->vm_private_data;
@@ -86,9 +84,8 @@ static int mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		return 0;    
 	}
  
-	page = virt_to_page(info->data);    
-	get_page(page);
-	vmf->page = page;            
+	vmf->page = virt_to_page(info->data);    
+	get_page(vmf->page);            
 
 	printk("Mmap Fault\n");
 	return 0;
@@ -202,7 +199,7 @@ static struct file_operations file_func = {
 /*init module*/
 static int __init map_module_init(void)
 {	
-   if (alloc_chrdev_region(&first, 0, 1, "my_char_dev") < 0)
+    if (alloc_chrdev_region(&first, 0, 1, "my_char_dev") < 0)
     {
         return -1;
     }
@@ -219,6 +216,7 @@ static int __init map_module_init(void)
         unregister_chrdev_region(first, 1);
         return -1;
     }
+	
     cdev_init(&c_dev, &file_func);
     if (cdev_add(&c_dev, first, 1) == -1)
     {
@@ -227,6 +225,7 @@ static int __init map_module_init(void)
         unregister_chrdev_region(first, 1);
         return -1;
     }
+	
  	return 0;
 }
 
@@ -237,12 +236,8 @@ static void __exit map_module_exit(void)
 	device_destroy(cl, first);
     class_destroy(cl);
 	unregister_chrdev_region(first, 1);
-	
 	debugfs_remove(my_file);
-	
-	del_timer(&my_timer);
-	
-				
+	del_timer(&my_timer);				
 }  
 
 module_init(map_module_init);

@@ -43,11 +43,12 @@ void intHandler(int data)
     if(ioctl(fd, WRITE_IOCTL, "0") < 0)
 		perror("Exit Command");
 	close(handle);
-	//close(fd);
+	close(fd);
 	exit(1);
 }
 
-int main(){
+int main()
+{
 	char buf[20];
 	int major=0, quit=0, already_allocated = 0;
 	char option[20];
@@ -61,6 +62,7 @@ int main(){
 	
 	if ((fd = open(cdev, O_RDWR)) < 0) {
 		perror("open");
+		printf("Insert kernelspace Module First\n");
 		return -1;
 	}
 
@@ -96,6 +98,12 @@ int main(){
 				}
 				break;
 			case '2':	
+				if(!already_allocated)
+				{
+					printf("Please Allocate First\n");
+					break;
+				}
+				
 				if(ioctl(fd, WRITE_IOCTL, "2") < 0)
 					perror("Map Command");
 				
