@@ -13,6 +13,7 @@
 #define WRITE_IOCTL _IOW('G', 1, int)
 
 #define PAGE_SIZE 512
+#define DELAY 60
 
 char * address = NULL;
 int quit_thread = 0, handle, fd = -1;
@@ -36,11 +37,15 @@ void* print_long()
 
 }
 
+void delay_time()
+{
+	quit_thread = 1;
+}
 
 void intHandler(int data) 
 {
 	quit_thread = 1;
-    if(ioctl(fd, WRITE_IOCTL, "0") < 0)
+    	if(ioctl(fd, WRITE_IOCTL, "0") < 0)
 		perror("Exit Command");
 	close(handle);
 	close(fd);
@@ -52,11 +57,12 @@ int main()
 	char buf[20];
 	int major=0, quit=0, already_allocated = 0;
 	char option[20];
-	pthread_t print_thread;	
+	pthread_t print_thread, delay_thread;	
 	FILE *myFile;
 	
 	signal(SIGINT, intHandler);
 	signal(SIGTSTP, intHandler);
+	signal(SIGALRM, delay_time);
 	
 	char *cdev = "/dev/my_char_device";
 	
@@ -103,20 +109,22 @@ int main()
 					printf("Please Allocate First\n");
 					break;
 				}
-				
-				if(ioctl(fd, WRITE_IOCTL, "2") < 0)
-					perror("Map Command");
-				
 				address = mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, handle, 0);
 				if (address == MAP_FAILED) {
 					perror("Memory Map");
 					return -1;
 				}
+
+				pthread_create(&print_thread, NULL, print_long, NULL);
+				alarm(DELAY);
+
+				if(ioctl(fd, WRITE_IOCTL, "2") < 0)
+					perror("Map Command");
+				while(!quit_thread);
+								
 			//	break;
 			//case '3':
-				pthread_create(&print_thread, NULL, print_long, NULL); 
-				sleep(60);	
-				quit_thread = 1;
+				
 				//break;
 			//case '0':
 				if(ioctl(fd, WRITE_IOCTL, "0") < 0)
