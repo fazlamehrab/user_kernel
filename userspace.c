@@ -95,7 +95,7 @@ int main()
 						return -1;
 					}	
 					already_allocated = 1;
-					handle = open("/sys/kernel/debug/memory_map", O_RDWR);
+					handle = open("/sys/kernel/debug/memory_map_fs", O_RDWR);
 					if(handle < 0) 
 					{
 						perror("File Open");

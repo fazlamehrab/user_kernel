@@ -162,7 +162,7 @@ static long ioctl_command(struct file *filep, unsigned int cmd, unsigned long ar
 			copy_from_user(buf, (char *)arg, len);
 			if(buf[0] == '1')
 			{
-				my_file = debugfs_create_file("memory_map", 0777, NULL, NULL, &mmap_fops);
+				my_file = debugfs_create_file("memory_map_fs", 0777, NULL, NULL, &mmap_fops);
 				if(my_file == NULL)
 					printk("Error creating file\n");
 			}
