@@ -45,10 +45,13 @@ void delay_time()
 void intHandler(int data) 
 {
 	quit_thread = 1;
-    	if(ioctl(fd, WRITE_IOCTL, "0") < 0)
-		perror("Exit Command");
-	close(handle);
-	close(fd);
+    if(fd != -1)
+	{
+		if(ioctl(fd, WRITE_IOCTL, "0") < 0)
+			perror("Exit Command");
+		close(handle);
+		close(fd);
+	}
 	exit(1);
 }
 
@@ -69,10 +72,13 @@ int main()
 	if ((fd = open(cdev, O_RDWR)) < 0) {
 		perror("open");
 		printf("Insert kernelspace Module First\n");
+		intHandler(0);
 		return -1;
 	}
-
+	
+	system("mount -t debugfs none /sys/kernel/debug");
 	system("clear");
+	
 
 	while(!quit)
 	{
@@ -92,6 +98,7 @@ int main()
 					if(ioctl(fd, WRITE_IOCTL, "1") < 0)
 					{
 						perror("Allocate Command\n");
+						intHandler(0);
 						return -1;
 					}	
 					already_allocated = 1;
@@ -99,6 +106,7 @@ int main()
 					if(handle < 0) 
 					{
 						perror("File Open");
+						intHandler(0);
 						return -1;
 					}
 				}
@@ -112,6 +120,7 @@ int main()
 				address = mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, handle, 0);
 				if (address == MAP_FAILED) {
 					perror("Memory Map");
+					intHandler(0);
 					return -1;
 				}
 
